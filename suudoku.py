@@ -238,41 +238,42 @@ def scanMemo(std_map:List[List[int]],
         return flg
 
 
-    # squar scan
-    for x in range(0,9,3):
-        if flg :
+    # --- Square Scan ---
+    for x in range(0, 9, 3):
+        if flg:
             break
-        for y in range(0,9,3):
-            square_matrix = extract_square(std_memo_map,x,y)
+        for y in range(0, 9, 3):
+            square_matrix = extract_square(std_memo_map, x, y)
+
             logger.info("-------------------------------------------------------")
-            print_matrix(square_matrix)
+            print_matrix(square_matrix)  # デバッグ用出力
 
-            merge_square = [point for line in square_matrix for point in line]
+            merge_square = [point for line in square_matrix for point in line]  # 1次元リストに変換
 
-            # print_matrix(merge_square)
+            logger.info(merge_square)
+
             square_list, index_num = split_matrix_and_extract(merge_square)
-            # print(square_list,index_num,x,y)
-            if square_list :
+            if square_list and index_num is not None:
                 chg_y = index_num // 3
                 chg_x = index_num % 3
-                flg = True
-                logger.info(f"({square_list}),{index_num},x[{x + chg_x}]y[{y + chg_y}]")
-                logger.info(std_map[y + chg_y][x + chg_x])
-                std_map[y + chg_y][x + chg_x] = square_list[0]
-                logger.info(std_memo_map[y + chg_y][x + chg_x])
-                std_memo_map[y + chg_y][x + chg_x] = []
+                target_x = x + chg_x
+                target_y = y + chg_y
 
-                updataMemo(x + chg_x,y + chg_y,square_list[0],std_map,std_memo_map)
-                break
+                if std_map[target_y][target_x] == 0:  # 0 の場合にのみ更新
+                    flg = True
+                    logger.info(f"({square_list}), {index_num}, x[{target_x}] y[{target_y}]")
+                    logger.info(f"Before update: {std_map[target_y][target_x]}")
+                    std_map[target_y][target_x] = square_list[0]
+                    logger.info(f"After update: {std_map[target_y][target_x]}")
+
+                    std_memo_map[target_y][target_x] = []  # 確定値を削除
+                    updataMemo(target_x, target_y, square_list[0], std_map, std_memo_map)
+                    break
 
     
 
     if flg :
         return flg
-
-
-
-
 
 
     return flg
@@ -282,7 +283,7 @@ def updataMemo(x,y,value,std_map,std_memo_map):
     
     upd_flg = False
 
-    log_xStr , log_yStr = "", ""
+    log_xStr, log_yStr, log_sqStr = "", "", ""
 
     for point_x in range(9):
         log_xStr +=f"({point_x},{y}){std_memo_map[point_x][y]}--"
@@ -301,22 +302,16 @@ def updataMemo(x,y,value,std_map,std_memo_map):
     logger.info(log_yStr)
 
 
-    # square update
+    # --- 3×3 Square Update ---
+    base_x, base_y = (x // 3) * 3, (y // 3) * 3  # 3×3 のブロックの左上座標
+    for dx in range(3):
+        for dy in range(3):
+            target_x, target_y = base_x + dx, base_y + dy
+            log_sqStr += f"({target_x},{target_y}){std_memo_map[target_x][target_y]}--"
+            if std_memo_map[target_x][target_y] and value in std_memo_map[target_x][target_y]:
+                std_memo_map[target_x][target_y].remove(value)
 
-    # square_x = (x // 3 ) * 3
-    # square_y = (y // 3 ) * 3 
-
-    # square_matrix = extract_square(std_memo_map,square_x,square_y)
-    # print(f"test  -- {x}{y} ")
-    # print_matrix(square_matrix)
-
-    # # TODO error 
-    # # FIXME
-
-    # for adj_y,line in enumerate(square_matrix):
-    #     for adj_x, point in enumerate(line):
-    #         if value in point :
-    #             std_memo_map[square_y + adj_y][square_x + adj_x].remove(value)
+    logger.info(log_sqStr)
 
 
     return upd_flg
