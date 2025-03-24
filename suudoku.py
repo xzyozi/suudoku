@@ -3,6 +3,22 @@ from typing import List, Tuple, Any
 import copy
 from copy import deepcopy
 from collections import Counter
+import logging 
+
+logger = logging.getLogger(__name__)
+
+# フォーマッタの作成
+formatter = logging.Formatter('[%(lineno)d LINE][%(funcName)s] - %(message)s')
+
+# コンソールハンドラの作成
+handler = logging.StreamHandler()
+
+handler.setLevel(logging.DEBUG)
+# ハンドラにフォーマッタを設定
+handler.setFormatter(formatter)
+logger.setLevel(logging.DEBUG)
+logger.addHandler(handler)
+logger.propagate = False
 
 DEF_MAP = [ [0,0,0,1,0,0,0,0,0],
             [4,3,0,0,6,0,7,0,0],
@@ -14,19 +30,19 @@ DEF_MAP = [ [0,0,0,1,0,0,0,0,0],
             [0,0,0,7,0,0,4,1,0],
             [0,0,3,0,0,6,0,5,0] 
             ]
+# https://si-coding.net/20250322/sudoku9.html#content
 
+DEF_MAP = [ [0,0,0,0,1,0,5,0,0],
+            [7,6,5,0,0,0,0,0,0],
+            [8,0,0,0,0,0,2,0,0],
+            [2,0,0,0,8,6,0,0,0],
+            [0,0,7,0,0,0,0,0,0],
+            [0,5,0,3,9,2,0,0,0],
+            [0,0,0,5,0,0,0,0,1],
+            [0,0,9,0,0,0,4,0,8],
+            [0,0,1,6,3,0,0,9,0]
 
-# DEF_MAP = [ [0,0,0,0,1,0,5,0,0],
-#             [7,6,5,0,0,0,0,0,0],
-#             [8,0,0,0,0,0,2,0,0],
-#             [2,0,0,0,8,6,0,0,0],
-#             [0,0,7,0,0,0,0,0,0],
-#             [0,5,0,3,9,2,0,0,0],
-#             [0,0,0,5,0,0,0,0,1],
-#             [0,0,9,0,0,0,4,0,8],
-#             [0,0,1,6,3,0,0,9,0]
-
-# ]
+]
 
 ditect_map = deepcopy(DEF_MAP)
 
@@ -191,44 +207,68 @@ def scanMemo(std_map:List[List[int]],
         unique_index_num = 0
         row_list, unique_index_num = split_matrix_and_extract(line)
         
-        if row_list :
-            print(y,unique_index_num,row_list[0],std_map[y][unique_index_num])
+        if row_list and std_map[y][unique_index_num] == 0 :
+            logger.info("row update ")
+            logger.info(f"y[{y}]x[{unique_index_num}]list[{row_list}][{std_map[y][unique_index_num]}]")
             std_map[y][unique_index_num] = row_list[0]
-            updataMemo(unique_index_num,y,row_list[0],std_map,std_memo_map)
+            std_memo_map[y][unique_index_num]= []
+            updataMemo(y,unique_index_num,row_list[0],std_map,std_memo_map)
             flg = True
-            pass
+            break
 
-    else :
-        if flg :
-            return flg
+
+    if flg :
+        return flg
+        
+    # line scan
+    for x, col in enumerate(zip(*std_memo_map)):  # 列ごとに処理
+        unique_index_num = 0
+        col_list, unique_index_num = split_matrix_and_extract(list(col))
+
+        if col_list and std_map[unique_index_num][x] == 0 :
+            print("line update")
+            print(x, unique_index_num, col_list, std_map[unique_index_num][x])
+            std_map[unique_index_num][x] = col_list[0]
+            std_memo_map[unique_index_num][x] = []
+            updataMemo(unique_index_num, x,   col_list[0], std_map, std_memo_map)
+            flg = True
+            break
+
+    if flg:
+        return flg
+
 
     # squar scan
     for x in range(0,9,3):
+        if flg :
+            break
         for y in range(0,9,3):
             square_matrix = extract_square(std_memo_map,x,y)
-            print("-------------------------------------------------------")
+            logger.info("-------------------------------------------------------")
             print_matrix(square_matrix)
 
             merge_square = [point for line in square_matrix for point in line]
 
             # print_matrix(merge_square)
             square_list, index_num = split_matrix_and_extract(merge_square)
-            print(square_list,index_num,x,y)
+            # print(square_list,index_num,x,y)
             if square_list :
                 chg_y = index_num // 3
                 chg_x = index_num % 3
                 flg = True
-                print(std_map[y + chg_y][x + chg_x])
+                logger.info(f"({square_list}),{index_num},x[{x + chg_x}]y[{y + chg_y}]")
+                logger.info(std_map[y + chg_y][x + chg_x])
                 std_map[y + chg_y][x + chg_x] = square_list[0]
-                print(std_memo_map[x + chg_x][y + chg_y])
-                std_memo_map[x + chg_x][y + chg_y] = []
+                logger.info(std_memo_map[y + chg_y][x + chg_x])
+                std_memo_map[y + chg_y][x + chg_x] = []
 
                 updataMemo(x + chg_x,y + chg_y,square_list[0],std_map,std_memo_map)
+                break
 
     
-    else :
-        if flg :
-            return flg
+
+    if flg :
+        return flg
 
 
 
@@ -242,42 +282,45 @@ def updataMemo(x,y,value,std_map,std_memo_map):
     
     upd_flg = False
 
+    log_xStr , log_yStr = "", ""
+
     for point_x in range(9):
-        print(f"({point_x},{y}){std_memo_map[point_x][y]}",end="--")
+        log_xStr +=f"({point_x},{y}){std_memo_map[point_x][y]}--"
         if not std_memo_map[point_x][y] : continue
 
         if value in std_memo_map[point_x][y]:
             std_memo_map[point_x][y].remove(value)
-
-    else : print()
+    logger.info(log_xStr)
 
     for point_y in range(9):
-        print(f"({x},{point_y}){std_memo_map[x][point_y]}",end="--")
+        log_yStr += f"({x},{point_y}){std_memo_map[x][point_y]}--"
         if not std_memo_map[x][point_y] : continue
 
         if value in std_memo_map[x][point_y] :
             std_memo_map[x][point_y].remove(value)
-    
-    else : print()
+    logger.info(log_yStr)
+
 
     # square update
 
-    square_x = (x // 3 ) * 3
-    square_y = (y // 3 ) * 3 
+    # square_x = (x // 3 ) * 3
+    # square_y = (y // 3 ) * 3 
 
-    square_matrix = extract_square(std_memo_map,square_x,square_y)
-    # print(f"test   {square_x}{square_y} -- {x}{y} ")
-    print_matrix(square_matrix)
+    # square_matrix = extract_square(std_memo_map,square_x,square_y)
+    # print(f"test  -- {x}{y} ")
+    # print_matrix(square_matrix)
 
-    # TODO error
+    # # TODO error 
+    # # FIXME
 
-    for adj_y,line in enumerate(square_matrix):
-        for adj_x, point in enumerate(line):
-            if value in point :
-                std_memo_map[square_y + adj_y][square_x + adj_x].remove(value)
+    # for adj_y,line in enumerate(square_matrix):
+    #     for adj_x, point in enumerate(line):
+    #         if value in point :
+    #             std_memo_map[square_y + adj_y][square_x + adj_x].remove(value)
 
 
     return upd_flg
+
 
 def updata_chkMemo(std_map,
                    std_memo_map
@@ -293,11 +336,11 @@ def updata_chkMemo(std_map,
                 print(f"★ {upd_x}:{upd_y} -- {std_map[upd_x][upd_y]} -- {std_memo_map[upd_x][upd_y]} -- {len(upd_point)}")
                 std_map[upd_x][upd_y] = upd_point[0]
                 std_memo_map[upd_x][upd_y] = []
-                updataMemo(upd_x,upd_y,upd_point[0],std_map,std_memo_map)
+                updataMemo(upd_y,upd_x,upd_point[0],std_map,std_memo_map)
                 upd_flg = True
                 break
 
-    pass
+
 
 
 def format_matrix(matrix: List[Any], depth: int = 0) -> str:
@@ -319,7 +362,7 @@ def print_matrix(matrix: List[Any]):
     """
     任意の次元のリストを整形して表示
     """
-    print(format_matrix(matrix))
+    logger.info(format_matrix(matrix))
 
 # allows_v = allowLists(3,1,std_map)
 
@@ -350,6 +393,7 @@ def full_scan(std_map : List[List[int]],
             allows_v = allowLists(y,x,std_map)
             if len(allows_v) == 1 :
                 std_map[x][y] = allows_v[0]
+                allows_v.clear()
                 upd_flg = True
 
             memo_line.append(allows_v)
@@ -362,30 +406,33 @@ def full_scan(std_map : List[List[int]],
 
 
         #print(std_map)
-    print(count,len(memo_map))
+    # print(count,len(memo_map))
 
 
 def main():
     update_flg = True
     memo_update_flg = True
     memo_map = []
-    print_matrix(ditect_map)
+    # print_matrix(ditect_map)
     full_scan(ditect_map,memo_map,make_memo_flg=True)
 
     # while memo_update_flg:
 
-    for _ in range(15):
-
-        print_matrix(memo_map)
-        memo_update_flg = scanMemo(ditect_map,memo_map)
-
-        # if not update_flg and memo_update_flg :
-        #     update_flg = memo_update_flg
-
-        if updata_chkMemo(ditect_map,memo_map) :
-            memo_update_flg = True
-
+    for _ in range(50):
         print_matrix(ditect_map)
+        print_matrix(memo_map)
+        # full_scan(ditect_map,memo_map)
+
+        if scanMemo(ditect_map,memo_map) :
+            continue
+
+        if updata_chkMemo(ditect_map,memo_map):
+            continue
+
+        # if updata_chkMemo(ditect_map,memo_map) :
+        #     memo_update_flg = True
+
+    print_matrix(ditect_map)
     
     print_matrix(memo_map)
 
